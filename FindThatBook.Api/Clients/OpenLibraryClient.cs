@@ -7,6 +7,12 @@ namespace FindThatBook.Api.Clients;
 // Fetching only - no matching or ranking logic belongs in here.
 public class OpenLibraryClient : IOpenLibraryClient
 {
+    private static readonly string[] CommonParams =
+    [
+        "fields=key,title,author_name,first_publish_year,cover_i,edition_count",
+        "limit=20"
+    ];
+
     private readonly HttpClient _httpClient;
 
     public OpenLibraryClient(HttpClient httpClient)
@@ -14,7 +20,7 @@ public class OpenLibraryClient : IOpenLibraryClient
         _httpClient = httpClient;
     }
 
-    public async Task<List<OpenLibraryWork>> SearchAsync(string? title, string? author, CancellationToken ct)
+    public Task<List<OpenLibraryWork>> SearchAsync(string? title, string? author, CancellationToken ct)
     {
         // Open Library takes title/author as separate query params rather than
         // one free-text field, so we build the query string ourselves.
@@ -30,10 +36,15 @@ public class OpenLibraryClient : IOpenLibraryClient
             queryParams.Add($"author={Uri.EscapeDataString(author)}");
         }
 
-        queryParams.Add("fields=key,title,author_name,first_publish_year,cover_i,edition_count");
-        queryParams.Add("limit=20");
+        return FetchAsync(queryParams, ct);
+    }
 
-        var requestUri = $"https://openlibrary.org/search.json?{string.Join("&", queryParams)}";
+    public Task<List<OpenLibraryWork>> SearchRawAsync(string query, CancellationToken ct) =>
+        FetchAsync([$"q={Uri.EscapeDataString(query)}"], ct);
+
+    private async Task<List<OpenLibraryWork>> FetchAsync(IEnumerable<string> queryParams, CancellationToken ct)
+    {
+        var requestUri = $"https://openlibrary.org/search.json?{string.Join("&", queryParams.Concat(CommonParams))}";
 
         var response = await _httpClient.GetAsync(requestUri, ct);
         response.EnsureSuccessStatusCode();
