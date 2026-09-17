@@ -60,8 +60,7 @@ public class OpenLibraryClient : IOpenLibraryClient
             .ToList();
     }
 
-    // Mirrors Open Library's raw snake_case JSON, which is why the property
-    // names below don't match our own model's.
+    // Mirrors Open Library's raw JSON shape. Never leaves this class.
     private class OpenLibrarySearchResponse
     {
         [JsonPropertyName("docs")]
