@@ -186,17 +186,22 @@ public class BookMatcher : IBookMatcher
             return null;
         }
 
+        var queryTokens = queryAuthor.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
         for (var index = 0; index < authorNames.Count; index++)
         {
-            var candidate = NormalizeAuthor(authorNames[index]);
-            if (candidate.Length == 0)
+            var candidateTokens = NormalizeAuthor(authorNames[index])
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .ToHashSet(StringComparer.Ordinal);
+
+            if (candidateTokens.Count == 0)
             {
                 continue;
             }
 
-            // Substring either way so a surname-only query still matches "J. R. R. Tolkien".
-            if (candidate.Contains(queryAuthor, StringComparison.Ordinal) ||
-                queryAuthor.Contains(candidate, StringComparison.Ordinal))
+            // Deliberately loose: every query token must appear, but the candidate may
+            // carry extras like a middle initial. Better to match and rank than to miss.
+            if (queryTokens.All(candidateTokens.Contains))
             {
                 return index;
             }
