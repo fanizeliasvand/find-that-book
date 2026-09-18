@@ -9,7 +9,7 @@ public class GeminiClient : IGeminiClient
     private const string Endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:generateContent";
 
     private const int MaxAttempts = 3;
-    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(10);
 
     private readonly HttpClient _httpClient;
     private readonly ILogger<GeminiClient> _logger;
@@ -123,6 +123,24 @@ public class GeminiClient : IGeminiClient
     {
         [JsonPropertyName("contents")]
         public List<Content> Contents { get; set; } = new();
+
+        [JsonPropertyName("generationConfig")]
+        public GenerationConfig GenerationConfig { get; set; } = new();
+    }
+
+    private class GenerationConfig
+    {
+        [JsonPropertyName("thinkingConfig")]
+        public ThinkingConfig ThinkingConfig { get; set; } = new();
+    }
+
+    private class ThinkingConfig
+    {
+        // Gemini 3 uses thinkingLevel; thinkingBudget is legacy and unreliable here.
+        // "minimal" reports zero thought tokens on 3.6-flash, and neither prompt
+        // needs reasoning: one extracts fields, the other writes from given facts.
+        [JsonPropertyName("thinkingLevel")]
+        public string ThinkingLevel { get; set; } = "minimal";
     }
 
     private class Content
