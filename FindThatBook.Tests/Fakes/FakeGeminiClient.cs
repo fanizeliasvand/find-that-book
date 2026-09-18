@@ -17,6 +17,8 @@ public class FakeGeminiClient : IGeminiClient
 
     public string? LastPrompt { get; private set; }
 
+    public int CallCount { get; private set; }
+
     public static FakeGeminiClient Returning(string response) => new(response, null);
 
     public static FakeGeminiClient Throwing(Exception exception) => new(null, exception);
@@ -24,6 +26,7 @@ public class FakeGeminiClient : IGeminiClient
     public Task<string> GenerateAsync(string prompt, CancellationToken ct)
     {
         LastPrompt = prompt;
+        CallCount++;
 
         return _exception is not null
             ? Task.FromException<string>(_exception)
