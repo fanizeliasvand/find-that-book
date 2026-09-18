@@ -48,6 +48,7 @@ public class QueryParser : IQueryParser
 
             // An explicit "keywords": null in the JSON overwrites the property initializer.
             parsed.Keywords ??= [];
+            parsed.RawQuery = rawQuery;
 
             return parsed;
         }
@@ -98,12 +99,13 @@ public class QueryParser : IQueryParser
     {
         _logger.LogWarning(exception, "Falling back to the raw book query: {Reason}", reason);
 
-        // Open Library can still find something from the raw string, so the
-        // user gets results instead of an error.
+        // Title/Author stay null: the raw string only finds anything through
+        // SearchRawAsync, which reads RawQuery instead.
         return new QueryInterpretation
         {
-            Title = rawQuery,
-            Author = rawQuery,
+            RawQuery = rawQuery,
+            Title = null,
+            Author = null,
             Keywords = [],
             IsFallback = true
         };

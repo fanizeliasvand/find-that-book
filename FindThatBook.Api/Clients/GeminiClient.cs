@@ -5,7 +5,7 @@ namespace FindThatBook.Api.Clients;
 
 public class GeminiClient : IGeminiClient
 {
-    private const string Model = "gemini-2.5-flash";
+    private const string Model = "gemini-3.6-flash";
     private const string Endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/{Model}:generateContent";
 
     private readonly HttpClient _httpClient;
@@ -41,7 +41,10 @@ public class GeminiClient : IGeminiClient
         var body = await response.Content.ReadFromJsonAsync<GeminiResponse>(ct);
 
         // A safety-blocked or empty reply has no candidates. Returning empty text lets callers fall back instead of handling an exception.
-        return body?.Candidates?.FirstOrDefault()?.Content?.Parts?.FirstOrDefault()?.Text ?? string.Empty;
+        // Take the first part that actually carries text: thinking models can
+        // put a reasoning part ahead of the answer.
+        return body?.Candidates?.FirstOrDefault()?.Content?.Parts?
+            .FirstOrDefault(part => !string.IsNullOrWhiteSpace(part.Text))?.Text ?? string.Empty;
     }
 
     // Gemini uses the same contents/parts shape in both directions, so Content and Part are shared by the request and response DTOs
