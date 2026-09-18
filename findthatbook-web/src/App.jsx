@@ -4,6 +4,16 @@ import './App.css'
 // Matches the http launch profile in FindThatBook.Api/Properties/launchSettings.json.
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:5216'
 
+// Keyed by the MatchTier enum values the API serialises as numbers.
+const TIER_LABELS = {
+  1: 'Exact match',
+  2: 'Title match · credited author',
+  3: 'Title match',
+  4: 'Close match',
+  5: 'By this author',
+  6: 'Broad match',
+}
+
 export default function App() {
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('idle')
@@ -39,9 +49,7 @@ export default function App() {
     } catch (caught) {
       // A network-level failure gives an opaque "Failed to fetch".
       setError(
-        caught instanceof TypeError
-          ? 'Could not reach the search API. Is it running?'
-          : caught.message,
+        caught instanceof TypeError ? "Can't reach the search service." : caught.message,
       )
       setStatus('error')
     }
@@ -57,7 +65,7 @@ export default function App() {
           type="text"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="tolkien hobbit illustrated deluxe 1937"
+          placeholder="tolkien hobbit illustrated 1937"
           aria-label="Book search"
         />
         <button type="submit" disabled={isLoading || query.trim() === ''}>
@@ -65,17 +73,22 @@ export default function App() {
         </button>
       </form>
 
-      {status === 'idle' && (
-        <p className="notice">
-          Try a title, an author, a half-remembered phrase, or all three at once.
-        </p>
-      )}
-
       {isLoading && <p className="notice">Searching…</p>}
 
       {status === 'error' && <p className="notice error">{error}</p>}
 
       {status === 'ready' && data && <Results data={data} />}
+
+      <footer className="signature">
+        built by{' '}
+        <a
+          href="https://github.com/fanizeliasvand/find-that-book"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Faniz Eliasvand
+        </a>
+      </footer>
     </main>
   )
 }
@@ -88,11 +101,16 @@ function Results({ data }) {
       <Interpretation interpretation={interpretation} />
 
       {results.length === 0 ? (
-        <p className="notice">No matches found. Try describing the book differently.</p>
+        <p className="notice">Nothing matched. Try fewer words, or just the author.</p>
       ) : (
         <ul className="cards">
-          {results.map((book) => (
-            <BookCard key={book.openLibraryUrl} book={book} />
+          {results.map((book, index) => (
+            <BookCard
+              key={book.openLibraryUrl}
+              book={book}
+              // A broad match should not look like a confident answer.
+              featured={index === 0 && book.tier <= 3}
+            />
           ))}
         </ul>
       )}
@@ -103,9 +121,7 @@ function Results({ data }) {
 function Interpretation({ interpretation }) {
   if (interpretation.isFallback) {
     return (
-      <p className="interpretation fallback">
-        {"Couldn't parse the query, so this is a general text search."}
-      </p>
+      <p className="interpretation fallback">Showing broader results</p>
     )
   }
 
@@ -125,16 +141,16 @@ function Interpretation({ interpretation }) {
     return null
   }
 
-  return <p className="interpretation">Interpreted as — {parts.join(' · ')}</p>
+  return <p className="interpretation">Searched for — {parts.join(' · ')}</p>
 }
 
-function BookCard({ book }) {
+function BookCard({ book, featured }) {
   // Covers 404 often enough that a missing image needs handling too.
   const [coverFailed, setCoverFailed] = useState(false)
   const showCover = book.coverUrl && !coverFailed
 
   return (
-    <li className="card">
+    <li className={featured ? 'card featured' : 'card'}>
       {showCover ? (
         <img
           className="cover"
@@ -148,6 +164,10 @@ function BookCard({ book }) {
       )}
 
       <div className="details">
+        <span className={`badge tier-${book.tier}`}>
+          {TIER_LABELS[book.tier] ?? 'Match'}
+        </span>
+
         <h2>{book.title}</h2>
 
         {book.primaryAuthor && <p className="author">{book.primaryAuthor}</p>}

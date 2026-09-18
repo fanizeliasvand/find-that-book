@@ -2,24 +2,42 @@
   width: 100%;
   max-width: 780px;
   margin: 0 auto;
-  padding: 0 24px 64px;
+  padding: 0 24px 40px;
   box-sizing: border-box;
   text-align: left;
+  /* Column layout so the signature can sit at the bottom on a short page. */
+  display: flex;
+  flex: 1;
+  flex-direction: column;
 }
 
-.tagline {
+.signature {
+  margin-top: auto;
+  padding-top: 56px;
+  font-size: 13px;
   text-align: center;
-  margin-bottom: 32px;
+  color: var(--text);
+}
+
+.signature a {
+  color: var(--accent);
 }
 
 .page h1 {
   text-align: center;
+  margin: 56px 0 26px;
+}
+
+.tagline {
+  text-align: center;
+  line-height: 150%;
+  margin-bottom: 32px;
 }
 
 .search {
   display: flex;
   gap: 12px;
-  margin-bottom: 28px;
+  margin-bottom: 32px;
 }
 
 .search input {
@@ -73,17 +91,11 @@
   border-radius: 8px;
 }
 
+/* Both the parsed and fallback states read as one quiet line, not an alert. */
 .interpretation {
-  padding: 10px 14px;
-  margin-bottom: 20px;
-  font-size: 15px;
-  background: var(--code-bg);
-  border-radius: 8px;
-}
-
-.interpretation.fallback {
-  color: var(--text-h);
-  background: var(--accent-bg);
+  margin-bottom: 14px;
+  font-size: 14px;
+  color: var(--text);
 }
 
 .cards {
@@ -99,14 +111,24 @@
   display: grid;
   grid-template-columns: 90px 1fr;
   gap: 20px;
+  align-items: start;
   padding: 20px;
   border: 1px solid var(--border);
   border-radius: 10px;
 }
 
+/* Emphasis without a size change: order and the tier badge already convey rank.
+   Padding compensates for the thicker border so content stays aligned. */
+.card.featured {
+  padding-left: 18px;
+  border-left: 3px solid var(--accent);
+}
+
 .cover {
   width: 90px;
   height: 135px;
+  /* border-box so the placeholder's border does not make it wider than a real cover. */
+  box-sizing: border-box;
   object-fit: cover;
   border-radius: 6px;
   background: var(--code-bg);
@@ -121,6 +143,48 @@
   border: 1px dashed var(--border);
 }
 
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+}
+
+.badge.tier-1 {
+  color: #fff;
+  background: var(--accent);
+}
+
+.badge.tier-2 {
+  color: var(--text-h);
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+}
+
+.badge.tier-3 {
+  color: var(--text-h);
+  background: var(--accent-bg);
+}
+
+.badge.tier-4 {
+  color: var(--text);
+  background: var(--code-bg);
+  border-color: var(--border);
+}
+
+.badge.tier-5 {
+  color: var(--text);
+  background: var(--code-bg);
+}
+
+.badge.tier-6 {
+  color: var(--text);
+  border-color: var(--border);
+}
+
 .details h2 {
   margin-bottom: 4px;
 }
@@ -131,20 +195,23 @@
 
 .contributors,
 .meta {
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .meta {
   margin-top: 6px;
 }
 
+/* The explanation is the headline feature, so it outranks the metadata. */
 .explanation {
-  margin-top: 12px;
-  padding-left: 12px;
-  font-size: 15px;
+  margin-top: 14px;
+  padding-left: 14px;
+  font-size: 17px;
+  line-height: 150%;
   color: var(--text-h);
-  border-left: 2px solid var(--accent-border);
+  border-left: 3px solid var(--accent-border);
 }
+
 
 .details a {
   display: inline-block;
@@ -158,11 +225,20 @@
     padding: 0 16px 48px;
   }
 
+  .page h1 {
+    margin: 36px 0 18px;
+  }
+
+  .tagline {
+    margin-bottom: 28px;
+  }
+
   .search {
     flex-direction: column;
   }
 
-  .card {
+  .card,
+  .card.featured {
     grid-template-columns: 1fr;
     justify-items: start;
   }
