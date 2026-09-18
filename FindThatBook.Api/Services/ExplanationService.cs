@@ -51,7 +51,8 @@ public class ExplanationService : IExplanationService
             var response = await _gemini.GenerateAsync(BuildPrompt(needsModel, interpretation), ct);
             ApplyModelExplanations(response, needsModel);
         }
-        catch (OperationCanceledException)
+        // Only a caller cancel propagates; a GeminiClient timeout falls back like any failure.
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
         }

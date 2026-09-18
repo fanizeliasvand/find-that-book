@@ -52,7 +52,9 @@ public class QueryParser : IQueryParser
 
             return parsed;
         }
-        catch (OperationCanceledException)
+        // Only a caller cancel propagates. GeminiClient's own timeout is also an
+        // OperationCanceledException, and that is just another failure to fall back from.
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
         }

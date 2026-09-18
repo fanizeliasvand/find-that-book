@@ -142,14 +142,27 @@ public class QueryParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_ClientThrowsOperationCanceled_RethrowsInsteadOfFallingBack()
+    public async Task ParseAsync_CallerCancelled_Rethrows()
     {
-        var gemini = FakeGeminiClient.Throwing(new OperationCanceledException());
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var gemini = FakeGeminiClient.Throwing(new OperationCanceledException(cancellation.Token));
 
         var parser = CreateParser(gemini);
 
         await Assert.ThrowsAsync<OperationCanceledException>(
-            () => parser.ParseAsync("dune", CancellationToken.None));
+            () => parser.ParseAsync("dune", cancellation.Token));
+    }
+
+    [Fact]
+    public async Task ParseAsync_TimeoutWithoutCallerCancellation_FallsBack()
+    {
+        // HttpClient reports its own timeout this way, with the caller's token untouched.
+        var gemini = FakeGeminiClient.Throwing(new TaskCanceledException());
+
+        var result = await CreateParser(gemini).ParseAsync("dune", CancellationToken.None);
+
+        AssertFallback(result, "dune");
     }
 
     private static QueryParser CreateParser(IGeminiClient gemini) =>

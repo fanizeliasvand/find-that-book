@@ -128,13 +128,26 @@ public class ExplanationServiceTests
     }
 
     [Fact]
-    public async Task ApplyExplanationsAsync_OperationCanceled_IsRethrownRatherThanSwallowed()
+    public async Task ApplyExplanationsAsync_CallerCancelled_Rethrows()
     {
-        var gemini = FakeGeminiClient.Throwing(new OperationCanceledException());
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var gemini = FakeGeminiClient.Throwing(new OperationCanceledException(cancellation.Token));
         var service = CreateService(gemini);
 
         await Assert.ThrowsAsync<OperationCanceledException>(
-            () => service.ApplyExplanationsAsync([Ambiguous("Dune")], Interpretation(), CancellationToken.None));
+            () => service.ApplyExplanationsAsync([Ambiguous("Dune")], Interpretation(), cancellation.Token));
+    }
+
+    [Fact]
+    public async Task ApplyExplanationsAsync_TimeoutWithoutCallerCancellation_FallsBackToEvidenceText()
+    {
+        var candidate = Ambiguous("Dune");
+        var gemini = FakeGeminiClient.Throwing(new TaskCanceledException());
+
+        await CreateService(gemini).ApplyExplanationsAsync([candidate], Interpretation(), CancellationToken.None);
+
+        Assert.Contains("title matches your search exactly", candidate.Explanation);
     }
 
     private static ExplanationService CreateService(IGeminiClient gemini) =>
