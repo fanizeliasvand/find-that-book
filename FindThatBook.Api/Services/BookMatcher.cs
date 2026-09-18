@@ -13,7 +13,7 @@ public class BookMatcher : IBookMatcher
         var queryTitle = Normalize(interpretation.Title);
         var queryAuthor = NormalizeAuthor(interpretation.Author);
 
-        return Deduplicate(works)
+        return DeduplicateByTitleAndAuthor(DeduplicateByKey(works))
             .Select(work => BuildCandidate(work, interpretation, queryTitle, queryAuthor))
             .OrderBy(candidate => candidate.Tier)
             .ThenByDescending(candidate => candidate.Evidence.YearMatched)
@@ -76,8 +76,8 @@ public class BookMatcher : IBookMatcher
         return normalized;
     }
 
-    // Open Library can return the same work more than once; keep the earliest year and the widest edition count across the duplicates.
-    private static List<OpenLibraryWork> Deduplicate(List<OpenLibraryWork> works)
+    // Pass one: the same work key returned more than once in a single response.
+    private static List<OpenLibraryWork> DeduplicateByKey(List<OpenLibraryWork> works)
     {
         return works
             .Where(work => !string.IsNullOrWhiteSpace(work.Key))
@@ -90,6 +90,32 @@ public class BookMatcher : IBookMatcher
                 FirstPublishYear = group.Min(work => work.FirstPublishYear),
                 CoverId = group.Select(work => work.CoverId).FirstOrDefault(id => id is not null),
                 EditionCount = group.Max(work => work.EditionCount)
+            })
+            .ToList();
+    }
+
+    // Pass two: genuinely distinct work keys that describe the same book, which
+    // Open Library does carry. The widest edition count wins as the canonical record.
+    private static List<OpenLibraryWork> DeduplicateByTitleAndAuthor(List<OpenLibraryWork> works)
+    {
+        return works
+            .GroupBy(work => (
+                Title: Normalize(work.Title),
+                // No authors groups on title alone rather than throwing.
+                Author: NormalizeAuthor(work.AuthorNames.FirstOrDefault())))
+            .Select(group =>
+            {
+                var canonical = group.MaxBy(work => work.EditionCount)!;
+
+                return new OpenLibraryWork
+                {
+                    Key = canonical.Key,
+                    Title = canonical.Title,
+                    AuthorNames = canonical.AuthorNames,
+                    EditionCount = canonical.EditionCount,
+                    FirstPublishYear = group.Min(work => work.FirstPublishYear),
+                    CoverId = group.Select(work => work.CoverId).FirstOrDefault(id => id is not null)
+                };
             })
             .ToList();
     }
