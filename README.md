@@ -1,5 +1,11 @@
 # Find That Book
 
+## Live demo
+
+**https://findthatbook-faniz.vercel.app**
+
+The API runs on Render's free tier, which sleeps after about 15 minutes idle. The first search after that can take around 50 seconds while it wakes; later ones are fast. The front end is on Vercel; the API is deployed from `FindThatBook.Api/Dockerfile`, with the key and allowed origin set as environment variables (`Gemini__ApiKey`, `Cors__AllowedOrigins__0`).
+
 ## What it does
 
 Find That Book takes a messy plain-text book description, like `tolkien hobbit illustrated deluxe 1937`, and returns a short ranked list of matches. Gemini extracts a title, author and keywords; those drive an Open Library search; and our own matching hierarchy re-ranks the results. Gemini then writes a one-sentence explanation for each, using only match facts our code supplies.
@@ -34,7 +40,7 @@ npm install
 npm run dev
 ```
 
-The front end calls `http://localhost:5216` by default (override with `VITE_API_BASE_URL`). CORS only allows `http://localhost:5173`, so if 5173 is taken and Vite picks another port, the browser blocks requests. An `https` profile runs on https://localhost:7259, but the front end and CORS expect http.
+The front end calls `http://localhost:5216` by default (override with `VITE_API_BASE_URL`). CORS allows only the origins in `Cors:AllowedOrigins`, which defaults to `http://localhost:5173` in `appsettings.json`, so if 5173 is taken and Vite picks another port, the browser blocks requests. An `https` profile runs on https://localhost:7259, but the front end and CORS expect http.
 
 Tests, from the repo root:
 
