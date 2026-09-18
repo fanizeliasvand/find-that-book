@@ -13,6 +13,7 @@ builder.Services.AddHttpClient<IGeminiClient, GeminiClient>();
 
 builder.Services.AddScoped<IQueryParser, QueryParser>();
 builder.Services.AddScoped<IBookMatcher, BookMatcher>();
+builder.Services.AddScoped<IExplanationService, ExplanationService>();
 builder.Services.AddScoped<ISearchService, SearchService>();
 
 builder.Services.AddCors(options =>

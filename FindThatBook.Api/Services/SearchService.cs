@@ -10,17 +10,20 @@ public class SearchService : ISearchService
     private readonly IQueryParser _queryParser;
     private readonly IOpenLibraryClient _openLibrary;
     private readonly IBookMatcher _matcher;
+    private readonly IExplanationService _explanationService;
     private readonly ILogger<SearchService> _logger;
 
     public SearchService(
         IQueryParser queryParser,
         IOpenLibraryClient openLibrary,
         IBookMatcher matcher,
+        IExplanationService explanationService,
         ILogger<SearchService> logger)
     {
         _queryParser = queryParser;
         _openLibrary = openLibrary;
         _matcher = matcher;
+        _explanationService = explanationService;
         _logger = logger;
     }
 
@@ -41,6 +44,9 @@ public class SearchService : ISearchService
         var results = confident.Count > 0
             ? confident
             : ranked.Take(MaxResults).ToList();
+
+        // After the trim, so we only pay for explanations we will show.
+        await _explanationService.ApplyExplanationsAsync(results, interpretation, ct);
 
         _logger.LogInformation(
             "Search returned {ResultCount} of {RankedCount} candidates (fallback: {IsFallback})",
