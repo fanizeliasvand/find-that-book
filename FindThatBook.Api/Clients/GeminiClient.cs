@@ -20,7 +20,6 @@ public class GeminiClient : IGeminiClient
         _httpClient = httpClient;
         _logger = logger;
 
-        // Fail at startup rather than on the first search.
         _apiKey = configuration["Gemini:ApiKey"]
             ?? throw new InvalidOperationException("Gemini:ApiKey is not configured.");
     }

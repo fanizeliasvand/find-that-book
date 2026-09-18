@@ -5,6 +5,15 @@ const string WebAppCorsPolicy = "FindThatBookWeb";
 
 var builder = WebApplication.CreateBuilder(args);
 
+// GeminiClient is only constructed on the first search, so check the key here
+// or a misconfigured app starts fine and fails on first use.
+if (string.IsNullOrWhiteSpace(builder.Configuration["Gemini:ApiKey"]))
+{
+    throw new InvalidOperationException(
+        "Gemini:ApiKey is missing or empty. Set it with: " +
+        "dotnet user-secrets set \"Gemini:ApiKey\" \"<your-key>\" --project FindThatBook.Api");
+}
+
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
