@@ -150,7 +150,7 @@ I found a cancellation bug while reviewing that handling. `GeminiClient`'s 10-se
 
 ## Next steps
 
-- **Caching**, in memory for one instance, Redis across several. Gemini's free tier allows 20 requests a day and each search makes two, so about ten searches, and repeat queries are common; a cache would also cut their latency.
+- **Caching**, in memory for one instance, Redis across several. Repeat queries are common, and both the extraction and explanation calls are deterministic enough to cache. It would cut latency to near zero on repeats and reduce API spend.
 - **Return results before explanations.** Explanations are the slowest remaining step; books could render as soon as ranking finishes, with explanations filling in after.
 - **Honor the retry delay on 429** instead of never retrying. Gemini's 429 says how long to wait, which separates a per-minute limit that clears in seconds from an exhausted daily quota that doesn't. Today both are treated as permanent.
 - **Controller-level tests.** `SearchController`'s 400 on an empty query, model binding and DI wiring are untested; a `WebApplicationFactory` test with fakes swapped in would cover the HTTP contract the front end relies on.
