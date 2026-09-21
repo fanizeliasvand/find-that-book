@@ -4,6 +4,6 @@ namespace FindThatBook.Api.Services;
 
 public interface IQueryParser
 {
-    // Never throws. Falls back to the raw query if extraction fails.
+    // Falls back to the raw query if extraction fails; only throws if the caller cancels.
     Task<QueryInterpretation> ParseAsync(string rawQuery, CancellationToken ct);
 }

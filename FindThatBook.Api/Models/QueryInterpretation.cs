@@ -11,6 +11,6 @@ public class QueryInterpretation
 
     public List<string> Keywords { get; set; } = new();
 
-    // True when extraction failed and Title/Author are just the raw query.
+    // True when the search fell back to full-text, from failed extraction or an empty fielded search.
     public bool IsFallback { get; set; }
 }

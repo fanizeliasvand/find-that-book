@@ -5,8 +5,7 @@ const string WebAppCorsPolicy = "FindThatBookWeb";
 
 var builder = WebApplication.CreateBuilder(args);
 
-// GeminiClient is only constructed on the first search, so check the key here
-// or a misconfigured app starts fine and fails on first use.
+// GeminiClient is built lazily, so without this check a bad key only surfaces on first search.
 if (string.IsNullOrWhiteSpace(builder.Configuration["Gemini:ApiKey"]))
 {
     throw new InvalidOperationException(
@@ -42,10 +41,12 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-// CORS goes before the HTTPS redirect: a browser preflight that gets a 307
-// instead of the CORS headers fails the whole request.
+// CORS before the HTTPS redirect: a preflight that gets a 307 instead of CORS headers fails.
 app.UseCors(WebAppCorsPolicy);
 app.UseHttpsRedirection();
+
+// The front end pings this on load, waking the free-tier instance while the user types.
+app.MapGet("/health", () => Results.Ok());
 
 app.MapControllers();
 

@@ -52,8 +52,8 @@ public class QueryParser : IQueryParser
 
             return parsed;
         }
-        // Only a caller cancel propagates. GeminiClient's own timeout is also an
-        // OperationCanceledException, and that is just another failure to fall back from.
+        // Only a caller cancel propagates; a GeminiClient timeout falls back like any failure.
+        // Both raise OperationCanceledException, hence the token check.
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
@@ -85,8 +85,7 @@ public class QueryParser : IQueryParser
         Query: {{rawQuery}}
         """;
 
-    // Slicing between the outermost braces also strips ```json fences,
-    // so they need no separate handling.
+    // Slicing between the outermost braces also strips ```json fences.
     private static string ExtractJsonObject(string response)
     {
         var start = response.IndexOf('{');
@@ -101,8 +100,7 @@ public class QueryParser : IQueryParser
     {
         _logger.LogWarning(exception, "Falling back to the raw book query: {Reason}", reason);
 
-        // Title/Author stay null: the raw string only finds anything through
-        // SearchRawAsync, which reads RawQuery instead.
+        // Title and Author stay null: only SearchRawAsync finds anything, and it reads RawQuery.
         return new QueryInterpretation
         {
             RawQuery = rawQuery,

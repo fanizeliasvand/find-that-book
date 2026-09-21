@@ -48,7 +48,7 @@ public class GeminiClient : IGeminiClient
                     Content = JsonContent.Create(request)
                 };
 
-                // Header auth keeps the key out of the URL
+                // Header auth keeps the key out of the URL.
                 message.Headers.Add("x-goog-api-key", _apiKey);
 
                 response = await _httpClient.SendAsync(message, timeout.Token);
@@ -80,9 +80,8 @@ public class GeminiClient : IGeminiClient
                 {
                     var body = await response.Content.ReadFromJsonAsync<GeminiResponse>(timeout.Token);
 
-                    // A safety-blocked or empty reply has no candidates. Returning empty text lets callers fall back instead of handling an exception.
-                    // Take the first part that actually carries text: thinking models can
-                    // put a reasoning part ahead of the answer.
+                    // An empty or safety-blocked reply has no candidates, and empty text lets callers fall back.
+                    // Thinking models can put a reasoning part first, so take the first part with text.
                     return body?.Candidates?.FirstOrDefault()?.Content?.Parts?
                         .FirstOrDefault(part => !string.IsNullOrWhiteSpace(part.Text))?.Text ?? string.Empty;
                 }
@@ -90,8 +89,8 @@ public class GeminiClient : IGeminiClient
                 // A 4xx fails identically on a second attempt, so only 5xx is worth repeating.
                 if ((int)response.StatusCode < 500 || lastAttempt)
                 {
-                    // EnsureSuccessStatusCode throws the body away, and the body is
-                    // where Google explains what is actually wrong.
+                    // EnsureSuccessStatusCode discards the body, which is where Google explains the failure.
+                    // The caller's token, not timeout.Token, so an already-fired timeout still logs the body.
                     var errorBody = await response.Content.ReadAsStringAsync(ct);
 
                     _logger.LogError(
@@ -117,7 +116,7 @@ public class GeminiClient : IGeminiClient
     private static TimeSpan BackoffFor(int attempt) =>
         TimeSpan.FromMilliseconds(100 * Math.Pow(2, attempt) + Random.Shared.Next(0, 100));
 
-    // Gemini uses the same contents/parts shape in both directions, so Content and Part are shared by the request and response DTOs
+    // Gemini uses the same contents/parts shape in both directions, so Content and Part are shared.
     private class GeminiRequest
     {
         [JsonPropertyName("contents")]
@@ -135,9 +134,8 @@ public class GeminiClient : IGeminiClient
 
     private class ThinkingConfig
     {
-        // Gemini 3 uses thinkingLevel; thinkingBudget is legacy and unreliable here.
-        // "minimal" reports zero thought tokens on 3.6-flash, and neither prompt
-        // needs reasoning: one extracts fields, the other writes from given facts.
+        // Gemini 3 uses thinkingLevel; thinkingBudget is the legacy Gemini 2.5 control.
+        // Neither prompt needs reasoning, and "minimal" reports zero thought tokens on 3.6-flash.
         [JsonPropertyName("thinkingLevel")]
         public string ThinkingLevel { get; set; } = "minimal";
     }

@@ -68,8 +68,7 @@ public class ExplanationService : IExplanationService
         }
     }
 
-    // A top-tier match with a single author has nothing to disambiguate,
-    // so it is not worth an API call.
+    // A top-tier match with a single author has nothing to disambiguate, so skip the API call.
     private static bool IsUnambiguous(BookCandidate candidate) =>
         candidate.Tier == MatchTier.ExactTitlePrimaryAuthor &&
         candidate.Evidence.TitleMatchKind == TitleMatchKind.Exact &&
@@ -104,8 +103,8 @@ public class ExplanationService : IExplanationService
         }
     }
 
-    // Slicing between the outermost brackets drops fences and prose, and also
-    // reaches the array if the model wraps it in an object.
+    // Slicing between the outermost brackets drops fences and prose.
+    // It also reaches the array if the model wraps it in an object.
     private static string ExtractJsonArray(string response)
     {
         var start = response.IndexOf('[');

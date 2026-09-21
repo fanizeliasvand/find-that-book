@@ -1,6 +1,6 @@
 namespace FindThatBook.Api.Models;
 
-// trimmed down to the fields we actually use.
+// Trimmed to the fields we actually use.
 public class OpenLibraryWork
 {
     // Open Library's stable identifier for this book, e.g. "/works/OL262758W".
@@ -8,12 +8,12 @@ public class OpenLibraryWork
 
     public required string Title { get; set; }
 
-    // Order matters here - index 0 is the primary author.
+    // Order matters: index 0 is the primary author.
     public List<string> AuthorNames { get; set; } = new();
 
     public int? FirstPublishYear { get; set; }
 
-    // Id used to build a cover image URL; null if no cover is known.
+    // Id used to build a cover image URL.
     public int? CoverId { get; set; }
 
     public int EditionCount { get; set; }

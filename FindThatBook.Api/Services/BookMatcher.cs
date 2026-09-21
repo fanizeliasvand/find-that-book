@@ -94,14 +94,14 @@ public class BookMatcher : IBookMatcher
             .ToList();
     }
 
-    // Pass two: genuinely distinct work keys that describe the same book, which
-    // Open Library does carry. The widest edition count wins as the canonical record.
+    // Pass two: distinct work keys that describe the same book, which Open Library does carry.
+    // The widest edition count wins as the canonical record.
     private static List<OpenLibraryWork> DeduplicateByTitleAndAuthor(List<OpenLibraryWork> works)
     {
         return works
             .GroupBy(work => (
                 Title: Normalize(work.Title),
-                // No authors groups on title alone rather than throwing.
+                // A work with no authors groups on title alone rather than throwing.
                 Author: NormalizeAuthor(work.AuthorNames.FirstOrDefault())))
             .Select(group =>
             {
@@ -199,8 +199,8 @@ public class BookMatcher : IBookMatcher
                 continue;
             }
 
-            // Deliberately loose: every query token must appear, but the candidate may
-            // carry extras like a middle initial. Better to match and rank than to miss.
+            // Deliberately loose: every query token must appear, but the candidate may carry a middle initial.
+            // Better to match and rank than to miss.
             if (queryTokens.All(candidateTokens.Contains))
             {
                 return index;

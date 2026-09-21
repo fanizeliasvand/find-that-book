@@ -33,6 +33,62 @@ public class SearchServiceTests
     }
 
     [Fact]
+    public async Task SearchAsync_TitleAndAuthorFindNothing_RetriesWithTheAuthorAlone()
+    {
+        var openLibrary = FakeOpenLibraryClient.Sequence(
+            [],
+            [Work("/works/OL1", "The Great Gatsby", ["F. Scott Fitzgerald"])]);
+        var service = CreateService(
+            Parsed("The Grate Gatsbee", "F. Scott Fitzgerald", "the grate gatsbee fitzgerald"),
+            openLibrary);
+
+        var response = await service.SearchAsync("the grate gatsbee fitzgerald", CancellationToken.None);
+
+        Assert.Equal(
+            [("The Grate Gatsbee", "F. Scott Fitzgerald"), (null, "F. Scott Fitzgerald")],
+            openLibrary.FieldedCalls);
+
+        // The title must leave the interpretation too, or the tier and the page disagree.
+        Assert.Null(response.Interpretation.Title);
+        Assert.False(response.Interpretation.IsFallback);
+        Assert.Equal(MatchTier.AuthorOnlyNoTitleGiven, response.Results.Single().Tier);
+    }
+
+    [Fact]
+    public async Task SearchAsync_AuthorAloneAlsoFindsNothing_FallsBackToFullTextSearch()
+    {
+        var openLibrary = FakeOpenLibraryClient.Sequence(
+            [],
+            [],
+            [Work("/works/OL1", "The Great Gatsby", ["F. Scott Fitzgerald"])]);
+        var service = CreateService(
+            Parsed("The Grate Gatsbee", "F. Scott Fitzgerald", "the grate gatsbee fitzgerald"),
+            openLibrary);
+
+        var response = await service.SearchAsync("the grate gatsbee fitzgerald", CancellationToken.None);
+
+        Assert.Equal("SearchRawAsync", openLibrary.LastMethod);
+        Assert.Equal("the grate gatsbee fitzgerald", openLibrary.LastRawQuery);
+        Assert.True(response.Interpretation.IsFallback);
+        Assert.Single(response.Results);
+    }
+
+    [Fact]
+    public async Task SearchAsync_TitleFindsNothingAndNoAuthorWasExtracted_SkipsStraightToFullTextSearch()
+    {
+        var openLibrary = FakeOpenLibraryClient.Sequence(
+            [],
+            [Work("/works/OL1", "Dune", ["Frank Herbert"])]);
+        var service = CreateService(Parsed("Dunes", null, "that dunes book"), openLibrary);
+
+        await service.SearchAsync("that dunes book", CancellationToken.None);
+
+        // One fielded attempt only: there is no author to retry with.
+        Assert.Equal([("Dunes", null)], openLibrary.FieldedCalls);
+        Assert.Equal("SearchRawAsync", openLibrary.LastMethod);
+    }
+
+    [Fact]
     public async Task SearchAsync_WeakResultsAreDroppedWhenStrongerOnesExist()
     {
         var openLibrary = new FakeOpenLibraryClient(
@@ -95,8 +151,7 @@ public class SearchServiceTests
         Assert.Equal(5, explanations.ReceivedCandidates.Count);
     }
 
-    // Distinct primary authors keep these out of the title-and-author dedup pass,
-    // so the count reaching the trim is the count supplied here.
+    // Distinct primary authors keep these out of the dedup pass, so the count supplied is the count trimmed.
     private static OpenLibraryWork[] ManyMatchingWorks(int count) =>
         Enumerable.Range(1, count)
             .Select(index => Work($"/works/OL{index}", "Dune", [$"Author Number {index}"]))
@@ -113,9 +168,9 @@ public class SearchServiceTests
             explanations ?? new FakeExplanationService(),
             NullLogger<SearchService>.Instance);
 
-    private static QueryInterpretation Parsed(string? title, string? author) => new()
+    private static QueryInterpretation Parsed(string? title, string? author, string rawQuery = "raw query") => new()
     {
-        RawQuery = "raw query",
+        RawQuery = rawQuery,
         Title = title,
         Author = author,
         IsFallback = false

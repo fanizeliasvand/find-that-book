@@ -3,8 +3,8 @@ using System.Text;
 
 namespace FindThatBook.Tests.Fakes;
 
-// Returns a queued sequence of responses, repeating the last one once the
-// queue runs dry, and records what was sent.
+// Returns a queued sequence of responses, repeating the last one once it runs dry.
+// Records each request so tests can assert on what was sent.
 public class StubHttpMessageHandler : HttpMessageHandler
 {
     private readonly Queue<(HttpStatusCode Status, string Body)> _responses;

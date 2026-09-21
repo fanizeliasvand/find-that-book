@@ -4,11 +4,23 @@
 
 **https://findthatbook-faniz.vercel.app**
 
-The API runs on Render's free tier, which sleeps after about 15 minutes idle. The first search after that can take around 50 seconds while it wakes; later ones are fast. The front end is on Vercel; the API is deployed from `FindThatBook.Api/Dockerfile`, with the key and allowed origin set as environment variables (`Gemini__ApiKey`, `Cors__AllowedOrigins__0`).
+The API runs on Render's free tier, which sleeps after about 15 minutes idle. The page pings `/health` on load to wake it while you type, so the first search is usually fast; if it's been idle, allow up to 50 seconds. The front end is on Vercel; the API is deployed from `FindThatBook.Api/Dockerfile`, with the key and allowed origin set as environment variables (`Gemini__ApiKey`, `Cors__AllowedOrigins__0`).
 
 ## What it does
 
 Find That Book takes a messy plain-text book description, like `tolkien hobbit illustrated deluxe 1937`, and returns a short ranked list of matches. Gemini extracts a title, author and keywords; those drive an Open Library search; and our own matching hierarchy re-ranks the results. Gemini then writes a one-sentence explanation for each, using only match facts our code supplies.
+
+## Where I went deep
+
+A working end-to-end app is the baseline, so I picked three areas to take further and deliberately left others thin.
+
+**Matching and normalization.** The ranking is the part a user actually feels, and it's the part with no API to lean on. It's pure functions over plain data, which is why it carries the most tests: normalization, six tiers, two de-duplication passes, tiebreaks.
+
+**LLM integration.** The model parses and writes prose; code decides every tier and sort order, so the model can only influence the outcome through what it extracts. Everything around it assumes it will misbehave — fences, prose, malformed JSON, nulls, skipped indexes, timeouts — and every one of those paths has a fallback and a test. The latency work (a 22s search down to ~2.5s) came out of the same scrutiny.
+
+**Testing.** 62 tests, no mocking library, and the subtle ones were mutation-checked by breaking the code on purpose to confirm the right test failed. That's how I found the cancellation bug described below.
+
+**Left thin on purpose:** no auth, no caching, no persistence, no rate limiting, and no tests for the controller, the Open Library client or the front end. Those are listed under [next steps](#next-steps) rather than half-built.
 
 ## Setup and running
 
@@ -71,6 +83,8 @@ Tiers 3 and 5 only occur when the query lacks an author or title, so they never 
 
 **Primary vs contributor.** `author_name` is ordered: index 0 is the primary author, later entries are illustrators, editors, translators and adapters. Searching Tolkien's *The Hobbit* also returns the 1990 graphic-novel adaptation, which lists Charles Dixon first and Tolkien second: same title, correct author, not the book most people mean. Position is the only signal separating them, so it splits tier 1 from tier 2 and feeds the explanation evidence.
 
+**Where the tier order costs us.** For `mark huckleberry`, Open Library has a 2007 *Huckleberry Finn* with Henry Brook as primary author and Twain as contributor (1 edition). Exact title, so tier 2. Twain's own *Adventures of Huckleberry Finn* (2,623 editions) only matches as a substring, so tier 4, and the adaptation wins. The tier order is the brief's, and it's right far more often than not — it's the same rule that puts the real *The Hobbit* above the Dixon graphic novel. The fix is a different signal, not a different order: an edition count three orders of magnitude larger is a strong hint of the canonical work.
+
 **Normalization.** Titles and authors are lowercased; stripped of diacritics by decomposing to Unicode FormD and dropping combining marks (`Café` → `cafe`); stripped of apostrophes without splitting words (`Hitchhiker's` → `hitchhikers`); and have other punctuation turned into word breaks, with whitespace collapsed (`The Hobbit, or There and Back Again` → `the hobbit or there and back again`). Titles also lose a leading `the`, `a` or `an`. Authors keep it, or `A. A. Milne` would become `a milne` instead of `a a milne`.
 
 **Exact, then prefix, then contains.** Exact means equal after normalization. A prefix match is almost always the same book with a subtitle or edition suffix (`hobbit` against *The Hobbit, or There and Back Again*). A substring match catches related but usually different books, like companions and commentaries such as *The Annotated Hobbit*. With no author given, a prefix still counts as tier 3, since a subtitle doesn't change the book.
@@ -80,6 +94,8 @@ Tiers 3 and 5 only occur when the query lacks an author or title, so they never 
 ## Assumptions and trade-offs
 
 **Open Library as a candidate pool.** Its relevance order is tuned for general search and knows nothing about author position or our tiers, so we take its top 20 and discard the order. A correct book outside the top 20 can't be found; the cap keeps responses small and fast.
+
+**One request, not N+1.** The brief points at `/works/{id}.json`, `/authors/{id}.json` and `/authors/{id}/works.json`, but `search.json` with `fields=key,title,author_name,first_publish_year,cover_i,edition_count` already returns everything the tiers and the cards need, so a search is one HTTP call instead of one plus a detail call per candidate. The detail endpoints would be worth it for data those fields don't carry, like subjects or an author's canonical name for disambiguation.
 
 **Two de-duplication passes.** The first, by work key, is what the brief asks for: repeated keys merge, keeping the earliest `first_publish_year`, highest edition count and first cover. The second catches distinct work records for one book, like a 1937 *The Hobbit* with 481 editions and a 2026 one with 2, both by J.R.R. Tolkien. Records sharing a normalized title and primary author merge; the most-editioned one supplies the link, and the group keeps its earliest year and any cover. I confirmed this was the preferred behavior. Same-titled books by different authors stay apart, and records with no work key are dropped, having nothing to link to.
 
@@ -109,6 +125,10 @@ Parsing is defensive regardless: models often wrap the requested bare JSON in ma
 
 **Error bodies are logged.** On a final failure the client logs the response body before throwing, since `EnsureSuccessStatusCode` discards it and that's where Google explains the problem. That's how a retired-model error hid: the log said only "404", and it took replaying the request by hand to see "this model is no longer available to new users".
 
+**A search that finds nothing widens instead of stopping.** The fielded search ANDs title and author, so one wrong field returns zero rows even when the other is right: `the grate gatsbee fitzgerald` used to return an empty page, because Gemini passed the typos straight through as the title and no record matches it. When the fielded search comes back empty, the search retries with the author alone, and if that's also empty it falls back to the same full-text `q=` search the parser's own fallback uses.
+
+The title is dropped from the interpretation on that retry, not just from the request. If it weren't, the results would be tiered against a title that matched nothing and land in `Weak`, while the page still displayed the title as if it had been searched. Dropping it puts them in `By this author` honestly, and the page reports what actually ran. This is the brief's author-only fallback; it previously only fired when the parser returned no title at all, never when the title was simply wrong.
+
 **Weak results.** Results are trimmed to five with `Weak` matches removed; if nothing's left, the weak ones are shown, because an uncertain result beats an empty page.
 
 **Not handled.** Open Library failures aren't caught: the search returns a 500 and the page shows the HTTP status. If the API is unreachable, the page says so instead of crashing.
@@ -129,7 +149,7 @@ Thought tokens falling from 1,318 to 609 to zero with latency show the time went
 
 ## Testing strategy
 
-There are 59 tests.
+There are 62 tests.
 
 | File | Tests | Covers |
 |---|---|---|
@@ -137,7 +157,7 @@ There are 59 tests.
 | `BookMatcherRankTests` | 12 | Every tier, subtitle prefixes, author matching, both de-dup passes, tiebreaks |
 | `QueryParserTests` | 13 | Extraction, defensive parsing, every fallback trigger, cancellation |
 | `GeminiClientTests` | 7 | Retry and no-retry by status, multi-part responses, key placement |
-| `SearchServiceTests` | 7 | Search strategy, trimming, weak results, explanation scope |
+| `SearchServiceTests` | 10 | Search strategy, the widening retries, trimming, weak results, explanation scope |
 | `ExplanationServiceTests` | 10 | Skipping the model, batching, index mapping, fallbacks, cancellation |
 
 The matching logic has no I/O, so it's tested directly with plain data. Everything else takes dependencies through interfaces, which tests fill with hand-written fakes; there's no mocking library. That covers LLM behavior you can't reliably trigger live: markdown fences, prose around JSON, malformed JSON, explicit `null`s, missing indexes, exceptions and timeouts. `GeminiClient` uses a stub `HttpMessageHandler` returning queued status codes. The 5xx retry branch never ran live (the only real failures were 429s and a 404), so that stub test is its only evidence.
@@ -150,7 +170,8 @@ I found a cancellation bug while reviewing that handling. `GeminiClient`'s 10-se
 
 ## Next steps
 
-- **Caching**, in memory for one instance, Redis across several. Repeat queries are common, and both the extraction and explanation calls are deterministic enough to cache. It would cut latency to near zero on repeats and reduce API spend.
+- **Caching**, in memory for one instance, Redis across several. Repeat queries are common, and caching both Gemini calls would cut their latency to near zero and reduce API spend.
 - **Return results before explanations.** Explanations are the slowest remaining step; books could render as soon as ranking finishes, with explanations filling in after.
 - **Honor the retry delay on 429** instead of never retrying. Gemini's 429 says how long to wait, which separates a per-minute limit that clears in seconds from an exhausted daily quota that doesn't. Today both are treated as permanent.
 - **Controller-level tests.** `SearchController`'s 400 on an empty query, model binding and DI wiring are untested; a `WebApplicationFactory` test with fakes swapped in would cover the HTTP contract the front end relies on.
+- **Rate limiting and a query length cap.** The demo endpoint is public and every search spends two Gemini calls against a billed key, so anyone can run up the bill. `AddRateLimiter` with a fixed window per IP, plus a `[MaxLength]` on the query, would bound both the cost and the size of what reaches the prompt.

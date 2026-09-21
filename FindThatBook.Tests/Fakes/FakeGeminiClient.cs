@@ -2,8 +2,8 @@ using FindThatBook.Api.Clients;
 
 namespace FindThatBook.Tests.Fakes;
 
-// Either returns a canned response or fails with a supplied exception,
-// and records the prompt so tests can assert on what was sent.
+// Returns a canned response or fails with a supplied exception.
+// Records the prompt so tests can assert on what was sent.
 public class FakeGeminiClient : IGeminiClient
 {
     private readonly string? _response;

@@ -2,6 +2,6 @@ namespace FindThatBook.Api.Clients;
 
 public interface IGeminiClient
 {
-    // Return raw text output. Callers own parsing of it.
+    // Callers own parsing of the returned text.
     Task<string> GenerateAsync(string prompt, CancellationToken ct);
 }

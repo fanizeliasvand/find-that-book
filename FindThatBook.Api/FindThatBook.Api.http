@@ -1,6 +1,27 @@
 @FindThatBook.Api_HostAddress = http://localhost:5216
 
-GET {{FindThatBook.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### Sparse: only a title and a surname, punctuated and out of order.
+POST {{FindThatBook.Api_HostAddress}}/api/search
+Content-Type: application/json
+
+{
+  "query": "dickens, tale two cities"
+}
+
+### Dense: author, title and noise. Expect The Hobbit (1937) above the 1990 adaptation.
+POST {{FindThatBook.Api_HostAddress}}/api/search
+Content-Type: application/json
+
+{
+  "query": "tolkien hobbit illustrated deluxe 1937"
+}
+
+### Ambiguous: a partial name and a character hint, no title as written.
+POST {{FindThatBook.Api_HostAddress}}/api/search
+Content-Type: application/json
+
+{
+  "query": "mark huckleberry"
+}
 
 ###

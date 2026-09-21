@@ -4,7 +4,7 @@ using FindThatBook.Api.Models;
 
 namespace FindThatBook.Api.Clients;
 
-// Fetching only - no matching or ranking logic belongs in here.
+// Fetching only: no matching or ranking logic belongs here.
 public class OpenLibraryClient : IOpenLibraryClient
 {
     private static readonly string[] CommonParams =
@@ -22,8 +22,7 @@ public class OpenLibraryClient : IOpenLibraryClient
 
     public Task<List<OpenLibraryWork>> SearchAsync(string? title, string? author, CancellationToken ct)
     {
-        // Open Library takes title/author as separate query params rather than
-        // one free-text field, so we build the query string ourselves.
+        // Open Library takes title and author as separate params, not one free-text field.
         var queryParams = new List<string>();
 
         if (!string.IsNullOrWhiteSpace(title))
