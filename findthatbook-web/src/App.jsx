@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 
 // Matches the http launch profile in FindThatBook.Api/Properties/launchSettings.json.
@@ -21,6 +21,12 @@ export default function App() {
   const [error, setError] = useState('')
 
   const isLoading = status === 'loading'
+
+  // The API sleeps on Render's free tier and takes ~50s to wake; pinging on load hides that.
+  // Failures are ignored: the search itself reports any real problem.
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/health`).catch(() => {})
+  }, [])
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -145,7 +151,7 @@ function Interpretation({ interpretation }) {
 }
 
 function BookCard({ book, featured }) {
-  // Covers 404 often enough that a missing image needs handling too.
+  // Covers 404 often enough to need a placeholder.
   const [coverFailed, setCoverFailed] = useState(false)
   const showCover = book.coverUrl && !coverFailed
 
