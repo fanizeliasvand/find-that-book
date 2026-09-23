@@ -75,6 +75,12 @@ public class QueryParser : IQueryParser
         - title: the book title alone, without edition, format or year words.
         - author: the author's name if the query names one, otherwise null.
         - keywords: remaining meaningful terms, such as format, edition or a 4-digit year.
+        - If the query describes a book instead of naming it, such as a plot, a character
+          or a premise, work out which book it is and use that book's real title. Keep the
+          descriptive words as keywords.
+
+        Query: girl falls down a rabbit hole
+        {"title":"Alice's Adventures in Wonderland","author":"Lewis Carroll","keywords":["rabbit hole"]}
 
         Query: tolkien hobbit illustrated deluxe 1937
         {"title":"The Hobbit","author":"J. R. R. Tolkien","keywords":["illustrated","deluxe","1937"]}
