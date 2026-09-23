@@ -16,6 +16,10 @@ public class BookMatcher : IBookMatcher
         return DeduplicateByTitleAndAuthor(DeduplicateByKey(works))
             .Select(work => BuildCandidate(work, interpretation, queryTitle, queryAuthor))
             .OrderBy(candidate => candidate.Tier)
+            // None is the enum's zero value, so it sorts first unless separated out; then
+            // the real matches run exact, prefix, contains before the weaker tiebreakers.
+            .ThenBy(candidate => candidate.Evidence.TitleMatchKind == TitleMatchKind.None)
+            .ThenBy(candidate => candidate.Evidence.TitleMatchKind)
             .ThenByDescending(candidate => candidate.Evidence.YearMatched)
             .ThenByDescending(candidate => candidate.Evidence.MatchedKeywords.Count)
             .ThenByDescending(candidate => candidate.EditionCount)

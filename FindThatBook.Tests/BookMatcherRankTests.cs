@@ -182,6 +182,43 @@ public class BookMatcherRankTests
         Assert.False(results[1].Evidence.YearMatched);
     }
 
+    [Fact]
+    public void Rank_WithinATier_ExactTitleBeatsPrefixWithMoreEditions()
+    {
+        var works = new List<OpenLibraryWork>
+        {
+            Work("/works/OL1", "It Can't Happen Here", ["Sinclair Lewis"], editionCount: 157),
+            Work("/works/OL2", "It", ["Stephen King"], editionCount: 96)
+        };
+        var interpretation = Query("It", null);
+
+        var results = new BookMatcher().Rank(works, interpretation);
+
+        // Both are tier 3, and the exact match has fewer editions.
+        Assert.Equal(TitleMatchKind.Exact, results[0].Evidence.TitleMatchKind);
+        Assert.Equal("It", results[0].Title);
+        Assert.Equal(TitleMatchKind.Prefix, results[1].Evidence.TitleMatchKind);
+    }
+
+    [Fact]
+    public void Rank_WithinTheWeakTier_ExactTitleBeatsNoTitleMatchAtAll()
+    {
+        var works = new List<OpenLibraryWork>
+        {
+            Work("/works/OL1", "Completely Unrelated", ["Another Person"]),
+            Work("/works/OL2", "It", ["Someone Else"])
+        };
+        var interpretation = Query("It", "Stephen King");
+
+        var results = new BookMatcher().Rank(works, interpretation);
+
+        // Both are Weak: the author was given and neither candidate has it.
+        Assert.All(results, result => Assert.Equal(MatchTier.Weak, result.Tier));
+        Assert.Equal("It", results[0].Title);
+        Assert.Equal(TitleMatchKind.Exact, results[0].Evidence.TitleMatchKind);
+        Assert.Equal(TitleMatchKind.None, results[1].Evidence.TitleMatchKind);
+    }
+
     private static OpenLibraryWork Work(
         string key,
         string title,
